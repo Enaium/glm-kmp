@@ -297,7 +297,7 @@ jobs:
         run: ./gradlew --no-daemon :glm-kmp:testAndroidHostTest
 
       - name: Assemble Android AAR
-        run: ./gradlew --no-daemon :glm-kmp:assembleDebug
+        run: ./gradlew --no-daemon :glm-kmp:assembleAndroidMain
 
       - name: Run JVM tests against Maven Local artifacts
         run: ./gradlew --no-daemon :example:jvmTest
