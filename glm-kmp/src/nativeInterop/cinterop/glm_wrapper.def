@@ -1,0 +1,2 @@
+headers = glm_wrapper.h
+compilerOpts = -std=c11

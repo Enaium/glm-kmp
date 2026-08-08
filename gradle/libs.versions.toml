@@ -1,0 +1,18 @@
+[versions]
+kotlin = "2.2.10"
+agp = "9.3.0"
+junit = "5.11.0"
+junit-platform = "1.11.0"
+maven-publish = "0.37.0"
+kotlinx-browser = "0.3"
+
+[plugins]
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
+
+[libraries]
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junit-platform" }
+kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "kotlinx-browser" }

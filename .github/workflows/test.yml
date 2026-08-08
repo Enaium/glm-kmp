@@ -1,0 +1,309 @@
+name: Test
+
+"on":
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+# Publishes every artifact to the local Maven repository and runs the test
+# suites for each platform. Each matrix entry covers the artifacts that its
+# runner can build:
+#
+#   macOS ARM64   -> :glm-kmp (multiplatform module: jvm/android/apple/js/wasmJs
+#                   targets), darwin JNI, JVM + native + JS/Wasm tests
+#   macOS x64     -> darwin-x86_64 JNI, JVM + macosX64 tests
+#   Linux x64     -> linux JNI (x86_64 + aarch64 cross), linuxX64/linuxArm64/
+#                   mingwX64 klibs, JVM + native + JS/Wasm tests
+#   Windows x64   -> windows JNI (MinGW), JVM tests
+#   Android       -> publish android/jvm/js/wasmJs to Maven Local, host tests,
+#                   assemble the AAR
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-macos-arm64:
+    name: Test macOS ARM64
+    runs-on: macos-14-arm64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Configure JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install Android SDK components
+        run: |
+          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;27.0.12077973"
+
+      - name: Install Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Decode signing key
+        run: |
+          echo "${{ secrets.SIGNING_KEY }}" | tr -d ' \n' | base64 -d > "$RUNNER_TEMP/signing-key.gpg"
+          ls -la "$RUNNER_TEMP/signing-key.gpg"
+          head -c 16 "$RUNNER_TEMP/signing-key.gpg" | od -c | head -2
+
+      - name: Publish all platforms to Maven Local
+        run: >
+          ./gradlew --no-daemon --stacktrace
+          -Psigning.keyId="${{ secrets.SIGNING_KEY_ID }}"
+          -Psigning.secretKeyRingFile="${{ runner.temp }}/signing-key.gpg"
+          -Psigning.password="${{ secrets.SIGNING_PASSWORD }}"
+          :glm-kmp:publishToMavenLocal
+          -x :glm-kmp:publishLinuxX64PublicationToMavenLocal
+          -x :glm-kmp:publishLinuxArm64PublicationToMavenLocal
+          -x :glm-kmp:publishMingwX64PublicationToMavenLocal
+          :jni-jvm-darwin-aarch64:publishToMavenLocal
+          :jni-jvm-darwin-x86_64:publishToMavenLocal
+          :jni-jvm-linux-x86_64:publishToMavenLocal
+          :jni-jvm-linux-aarch64:publishToMavenLocal
+          :jni-jvm-windows-x86_64:publishToMavenLocal
+
+      - name: Run JVM tests
+        run: ./gradlew --no-daemon :glm-kmp:jvmTest :example:jvmTest
+
+      - name: Run native tests
+        run: ./gradlew --no-daemon :glm-kmp:macosArm64Test :example:macosArm64Test
+
+      - name: Run JS/Wasm tests
+        run: >
+          ./gradlew --no-daemon
+          :glm-kmp:jsTest :glm-kmp:wasmJsNodeTest
+          :example:jsTest :example:wasmJsNodeTest
+
+  test-macos-x64:
+    name: Test macOS x64
+    runs-on: macos-14
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Configure JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Decode signing key
+        run: |
+          echo "${{ secrets.SIGNING_KEY }}" | tr -d ' \n' | base64 -d > "$RUNNER_TEMP/signing-key.gpg"
+          ls -la "$RUNNER_TEMP/signing-key.gpg"
+          head -c 16 "$RUNNER_TEMP/signing-key.gpg" | od -c | head -2
+
+      - name: Publish darwin JNI to Maven Local
+        run: >
+          ./gradlew --no-daemon --stacktrace
+          -Psigning.keyId="${{ secrets.SIGNING_KEY_ID }}"
+          -Psigning.secretKeyRingFile="${{ runner.temp }}/signing-key.gpg"
+          -Psigning.password="${{ secrets.SIGNING_PASSWORD }}"
+          :jni-jvm-darwin-x86_64:publishToMavenLocal
+          :jni-jvm-darwin-aarch64:publishToMavenLocal
+
+      - name: Run JVM tests
+        run: ./gradlew --no-daemon :glm-kmp:jvmTest
+
+      - name: Run native tests (macosX64)
+        run: ./gradlew --no-daemon :glm-kmp:macosX64Test
+
+  test-linux:
+    name: Test Linux x64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Configure JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install cross-compilers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+
+      - name: Install Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Decode signing key
+        run: |
+          echo "${{ secrets.SIGNING_KEY }}" | tr -d ' \n' | base64 -d > "$RUNNER_TEMP/signing-key.gpg"
+          ls -la "$RUNNER_TEMP/signing-key.gpg"
+          head -c 16 "$RUNNER_TEMP/signing-key.gpg" | od -c | head -2
+
+      - name: Publish linuxX64/linuxArm64/mingwX64 + linux JNI to Maven Local
+        run: >
+          ./gradlew --no-daemon --stacktrace
+          -Psigning.keyId="${{ secrets.SIGNING_KEY_ID }}"
+          -Psigning.secretKeyRingFile="${{ runner.temp }}/signing-key.gpg"
+          -Psigning.password="${{ secrets.SIGNING_PASSWORD }}"
+          :glm-kmp:publishLinuxX64PublicationToMavenLocal
+          :glm-kmp:publishLinuxArm64PublicationToMavenLocal
+          :glm-kmp:publishMingwX64PublicationToMavenLocal
+          :jni-jvm-linux-x86_64:publishToMavenLocal
+          :jni-jvm-linux-aarch64:publishToMavenLocal
+          :jni-jvm-darwin-x86_64:publishToMavenLocal
+          :jni-jvm-darwin-aarch64:publishToMavenLocal
+          :jni-jvm-windows-x86_64:publishToMavenLocal
+
+      - name: Run JVM tests
+        run: ./gradlew --no-daemon :glm-kmp:jvmTest
+
+      - name: Run native tests (linuxX64)
+        run: ./gradlew --no-daemon :glm-kmp:linuxX64Test
+
+      - name: Compile native klibs (linuxArm64, mingwX64)
+        run: >
+          ./gradlew --no-daemon
+          :glm-kmp:compileKotlinLinuxArm64
+          :glm-kmp:compileKotlinMingwX64
+
+      - name: Run JS/Wasm tests
+        run: >
+          ./gradlew --no-daemon
+          :glm-kmp:jsTest :glm-kmp:wasmJsNodeTest
+          :example:jsTest :example:wasmJsNodeTest
+
+  test-windows:
+    name: Test Windows x64
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Configure JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install MinGW
+        shell: pwsh
+        run: |
+          choco install mingw -y --no-progress
+          # The JVM needs MinGW's runtime DLLs (libwinpthread-1.dll,
+          # libgcc_s_seh-1.dll) on PATH to load the JNI DLL.
+          echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Decode signing key
+        shell: pwsh
+        run: |
+          [IO.File]::WriteAllBytes(
+            "$env:RUNNER_TEMP\signing-key.gpg",
+            [Convert]::FromBase64String("${{ secrets.SIGNING_KEY }}")
+          )
+          Get-Item "$env:RUNNER_TEMP\signing-key.gpg" | Select-Object Length
+          Format-Hex -Path "$env:RUNNER_TEMP\signing-key.gpg" -Count 16
+
+      - name: Publish windows JNI to Maven Local
+        shell: cmd
+        run: >
+          ./gradlew --no-daemon --stacktrace
+          -Psigning.keyId="${{ secrets.SIGNING_KEY_ID }}"
+          -Psigning.secretKeyRingFile="${{ runner.temp }}\signing-key.gpg"
+          -Psigning.password="${{ secrets.SIGNING_PASSWORD }}"
+          :jni-jvm-windows-x86_64:publishToMavenLocal
+
+      - name: Run JVM tests
+        run: ./gradlew --no-daemon --stacktrace :glm-kmp:jvmTest
+
+      - name: Compile native klib (mingwX64)
+        run: ./gradlew --no-daemon :glm-kmp:compileKotlinMingwX64
+
+  test-android:
+    name: Test Android
+    # GitHub-hosted runners don't support nested virtualization, so Android
+    # emulators can't boot with hardware acceleration. The AAR is assembled
+    # and the Android host tests (unit tests on the JVM against the host JNI
+    # library) are run; instrumented tests must be run on a local device.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Configure JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install Android SDK components
+        run: |
+          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;27.0.12077973"
+
+      - name: Install Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Decode signing key
+        run: |
+          echo "${{ secrets.SIGNING_KEY }}" | tr -d ' \n' | base64 -d > "$RUNNER_TEMP/signing-key.gpg"
+          ls -la "$RUNNER_TEMP/signing-key.gpg"
+          head -c 16 "$RUNNER_TEMP/signing-key.gpg" | od -c | head -2
+
+      - name: Publish JVM/Android/JS/Wasm to Maven Local
+        # apple/linux/mingw native targets are published by the macos/linux
+        # jobs (they need their hosts' toolchains).
+        run: >
+          ./gradlew --no-daemon --stacktrace
+          -Psigning.keyId="${{ secrets.SIGNING_KEY_ID }}"
+          -Psigning.secretKeyRingFile="${{ runner.temp }}/signing-key.gpg"
+          -Psigning.password="${{ secrets.SIGNING_PASSWORD }}"
+          :glm-kmp:publishKotlinMultiplatformPublicationToMavenLocal
+          :glm-kmp:publishJvmPublicationToMavenLocal
+          :glm-kmp:publishAndroidPublicationToMavenLocal
+          :glm-kmp:publishJsPublicationToMavenLocal
+          :glm-kmp:publishWasmJsPublicationToMavenLocal
+          :jni-jvm-linux-x86_64:publishToMavenLocal
+          :jni-jvm-linux-aarch64:publishToMavenLocal
+          :jni-jvm-darwin-x86_64:publishToMavenLocal
+          :jni-jvm-darwin-aarch64:publishToMavenLocal
+          :jni-jvm-windows-x86_64:publishToMavenLocal
+
+      - name: Run Android host tests
+        run: ./gradlew --no-daemon :glm-kmp:testAndroidHostTest
+
+      - name: Assemble Android AAR
+        run: ./gradlew --no-daemon :glm-kmp:assembleDebug
+
+      - name: Run JVM tests against Maven Local artifacts
+        run: ./gradlew --no-daemon :example:jvmTest
