@@ -1,5 +1,9 @@
 # glm-kmp
 
+[![Maven Central](https://img.shields.io/maven-central/v/cn.enaium.glm/glm-kmp)](https://repo1.maven.org/maven2/cn/enaium/glm/)
+[![Test](https://github.com/Enaium/glm-kmp/actions/workflows/test.yml/badge.svg)](https://github.com/Enaium/glm-kmp/actions/workflows/test.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Kotlin Multiplatform bindings for [GLM](https://github.com/g-truc/glm) (OpenGL
 Mathematics), the header-only C++ math library, from the `glm` git submodule.
 
@@ -19,6 +23,16 @@ arrays. The op table lives in `tools/gen_ops.py` (337 ops) and generates both
 the C++ dispatcher and the Kotlin `Ops` enum, so the two can never drift apart.
 
 ## Usage
+
+Published to Maven Central: `cn.enaium.glm:glm-kmp`.
+
+```kotlin
+repositories { mavenCentral() }
+
+dependencies {
+    implementation("cn.enaium.glm:glm-kmp:1.0.0")
+}
+```
 
 ```kotlin
 import cn.enaium.glm.*
@@ -50,16 +64,6 @@ The Kotlin API uses native Kotlin idioms on top of the GLM functions:
   `a cross b`, `a.slerped(b, t)`, `a.translated(1f, 2f, 3f)`, ...
 - top-level scalar functions: `sin`, `cos`, `mix`, `clamp`, `smoothstep`, ...
 
-### Gradle
-
-```kotlin
-repositories { mavenCentral() }
-
-dependencies {
-    implementation("cn.enaium.glm:glm-kmp:1.0.0")
-}
-```
-
 ## Modules
 
 - `glm-kmp` – the library itself
@@ -89,6 +93,24 @@ dependencies {
 # Run the example
 ./gradlew :example:runJvm
 ```
+
+## Continuous integration and releases
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `.github/workflows/test.yml` | push / PR / manual | Publishes every artifact to the local Maven repository (per runner: macOS, Linux, Windows, Android), then runs the test suites of `glm-kmp` and `example` on each platform |
+| `.github/workflows/publish.yml` | manual | Publishes the signed artifacts to Maven Central (each runner publishes exactly the targets it can build) |
+
+Releasing a new version:
+
+1. Bump `version` in `build.gradle.kts` (all projects share it)
+2. Push; wait for the `Test` workflow to go green
+3. Run the `Publish` workflow from the Actions tab
+
+The publish workflow requires the repository secrets `MAVEN_CENTRAL_USERNAME`,
+`MAVEN_CENTRAL_PASSWORD`, `SIGNING_KEY`, `SIGNING_KEY_ID` and
+`SIGNING_PASSWORD`. The `Test` workflow signs automatically when the signing
+secrets are present.
 
 ## Adding GLM functions
 
