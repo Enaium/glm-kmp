@@ -39,10 +39,6 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Install Android SDK components
-        run: |
-          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;27.0.12077973"
-
       - name: Install Emscripten
         uses: mymindstorm/setup-emsdk@v14
         with:
@@ -58,12 +54,14 @@ jobs:
           head -c 16 "$RUNNER_TEMP/signing-key.gpg" | od -c | head -2
 
       - name: Publish all platforms to Maven Local
+        # The android AAR needs the NDK and is published by the Android job.
         run: >
           ./gradlew --no-daemon --stacktrace
           -Psigning.keyId="${{ secrets.SIGNING_KEY_ID }}"
           -Psigning.secretKeyRingFile="${{ runner.temp }}/signing-key.gpg"
           -Psigning.password="${{ secrets.SIGNING_PASSWORD }}"
           :glm-kmp:publishToMavenLocal
+          -x :glm-kmp:publishAndroidPublicationToMavenLocal
           -x :glm-kmp:publishLinuxX64PublicationToMavenLocal
           -x :glm-kmp:publishLinuxArm64PublicationToMavenLocal
           -x :glm-kmp:publishMingwX64PublicationToMavenLocal
@@ -264,7 +262,7 @@ jobs:
 
       - name: Install Android SDK components
         run: |
-          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;27.0.12077973"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"             "platforms;android-37" "build-tools;37.0.0" "ndk;27.0.12077973"
 
       - name: Install Emscripten
         uses: mymindstorm/setup-emsdk@v14

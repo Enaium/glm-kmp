@@ -656,9 +656,15 @@ tasks.matching { it.name.startsWith("merge") && it.name.contains("JniLibFolders"
     .configureEach { dependsOn(buildAndroidJniLibs) }
 
 // ==================== Publishing ====================
+// Signing is enabled when a signing key is provided via -Psigning.* (CI
+// passes the repository secrets; local Maven Local tests can skip signing).
+val signingKeyId = providers.gradleProperty("signing.keyId").orNull
+
 mavenPublishing {
     publishToMavenCentral(automaticRelease = true)
-    signAllPublications()
+    if (!signingKeyId.isNullOrBlank()) {
+        signAllPublications()
+    }
 
     coordinates(
         groupId = group.toString(),

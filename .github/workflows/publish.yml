@@ -41,10 +41,6 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Install Android SDK components
-        run: |
-          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;27.0.12077973"
-
       - name: Install Emscripten
         uses: mymindstorm/setup-emsdk@v14
         with:
@@ -66,6 +62,7 @@ jobs:
           -Psigning.secretKeyRingFile="${{ runner.temp }}/signing-key.gpg"
           -Psigning.password="${{ secrets.SIGNING_PASSWORD }}"
           :glm-kmp:publishAllPublicationsToMavenCentralRepository
+          -x :glm-kmp:publishAndroidPublicationToMavenCentralRepository
           -x :glm-kmp:publishLinuxX64PublicationToMavenCentralRepository
           -x :glm-kmp:publishLinuxArm64PublicationToMavenCentralRepository
           -x :glm-kmp:publishMingwX64PublicationToMavenCentralRepository
@@ -97,6 +94,11 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
             gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
 
+      - name: Install Android SDK components
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-37" "build-tools;37.0.0" "ndk;27.0.12077973"
+
       - name: Install Emscripten
         uses: mymindstorm/setup-emsdk@v14
         with:
@@ -111,12 +113,13 @@ jobs:
           ls -la "$RUNNER_TEMP/signing-key.gpg"
           head -c 16 "$RUNNER_TEMP/signing-key.gpg" | od -c | head -2
 
-      - name: Publish :glm-kmp linuxX64/linuxArm64/mingwX64 and :jni-jvm-linux-*
+      - name: Publish :glm-kmp android/linuxX64/linuxArm64/mingwX64 and :jni-jvm-linux-*
         run: >
           ./gradlew --no-daemon --stacktrace
           -Psigning.keyId="${{ secrets.SIGNING_KEY_ID }}"
           -Psigning.secretKeyRingFile="${{ runner.temp }}/signing-key.gpg"
           -Psigning.password="${{ secrets.SIGNING_PASSWORD }}"
+          :glm-kmp:publishAndroidPublicationToMavenCentralRepository
           :glm-kmp:publishLinuxX64PublicationToMavenCentralRepository
           :glm-kmp:publishLinuxArm64PublicationToMavenCentralRepository
           :glm-kmp:publishMingwX64PublicationToMavenCentralRepository
