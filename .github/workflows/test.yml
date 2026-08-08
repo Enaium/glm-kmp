@@ -260,10 +260,6 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Install Android SDK components
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"             "platforms;android-37" "build-tools;37.0.0" "ndk;27.0.12077973"
-
       - name: Install Emscripten
         uses: mymindstorm/setup-emsdk@v14
         with:
