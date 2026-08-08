@@ -57,7 +57,6 @@ fun canBuildNativeTarget(targetName: String): Boolean {
         hostOs.isLinux && targetName == "linuxX64" -> true
         hostOs.isLinux && targetName == "linuxArm64" && hasAarch64CrossToolchain() -> true
         hostOs.isLinux && targetName == "mingwX64" && hasMingwCrossToolchain() -> true
-        hostOs.isWindows && targetName == "mingwX64" -> true
         else -> false
     }
 }
