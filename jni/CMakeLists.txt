@@ -40,6 +40,13 @@ if(BUILD_JNI)
     endif()
 
     if(ANDROID)
+        # Align segments to 16 KB pages (required by Play Store from
+        # Nov 2025 for apps targeting SDK 35+; NDK r27+ already does this
+        # for default links, but our custom CMake path sets it explicitly).
+        target_link_options(glm_wrapper_jni PRIVATE
+            "-Wl,-z,max-page-size=16384"
+            "-Wl,-z,common-page-size=16384"
+        )
         find_library(log-lib log)
         if(log-lib)
             target_link_libraries(glm_wrapper_jni PRIVATE ${log-lib})

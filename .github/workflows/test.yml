@@ -2,9 +2,6 @@ name: Test
 
 "on":
   workflow_dispatch:
-  push:
-    branches: [main]
-  pull_request:
 
 # Publishes every artifact to the local Maven repository and runs the test
 # suites for each platform. Each matrix entry covers the artifacts that its

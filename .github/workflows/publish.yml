@@ -15,7 +15,7 @@ name: Publish
 #                    :jni-jvm-linux-x86_64, :jni-jvm-linux-aarch64
 #   windows-latest -> :jni-jvm-windows-x86_64 (via MinGW)
 #
-# Trigger: run manually via the Actions tab. Version is fixed at 1.0.0
+# Trigger: run manually via the Actions tab. Version is fixed at 1.0.1
 # (root build.gradle.kts).
 #
 # Required repository secrets (Settings -> Secrets and variables -> Actions):

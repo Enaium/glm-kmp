@@ -32,7 +32,7 @@ operator overloads and member extensions.
 **Kotlin Multiplatform / Android / JS / Wasm:**
 
 ```kotlin
-implementation("cn.enaium.glm:glm-kmp:1.0.0")
+implementation("cn.enaium.glm:glm-kmp:1.0.1")
 ```
 
 **JVM:** the right native binary is resolved automatically — the `glm-kmp`
