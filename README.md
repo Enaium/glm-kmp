@@ -48,6 +48,22 @@ artifact pulls in the matching `:jni-jvm-*` sibling on the classpath:
 binary from the classpath to a temp directory, and `System.load`s it. No
 `java.library.path` setup is required for downstream JVM consumers.
 
+**JavaScript / Wasm (npm):** web apps that don't use Kotlin can depend on the
+`@enaium/glm-kmp` package, which ships the same Emscripten-compiled GLM
+module (wasm embedded, no asset files):
+
+```bash
+npm install @enaium/glm-kmp
+```
+
+```js
+import { glmCall, glmOpCount } from '@enaium/glm-kmp';
+
+// Op 0 is SIN; op codes mirror the Op enum order (tools/gen_ops.py).
+glmCall(0, [Math.PI / 2], 1)[0]; // ≈ 1
+glmOpCount();                    // 337
+```
+
 ## Quick Start
 
 ```kotlin
@@ -190,6 +206,16 @@ cd glm-kmp
 ./gradlew :glm-kmp:publishToMavenLocal
 ```
 
+### Publish the npm package
+
+```bash
+./gradlew :glm-kmp:publishWasmNpm   # token from npm.publish.key
+```
+
+`assembleWasmNpm` stages the package in `glm-kmp/build/npm` without
+publishing; the token is read from `npm.publish.key` in
+`~/.gradle/gradle.properties` (or `-Pnpm.publish.key=<token>`).
+
 ### Run tests
 
 ```bash
@@ -215,6 +241,7 @@ glm-kmp/
 │       └── windows-x86_64
 ├── glm-kmp/                 # Kotlin Multiplatform module
 │   ├── build.gradle.kts
+│   ├── wasm/                # npm package glue (glm_kmp_glue.js)
 │   └── src/
 │       ├── commonMain/      # API: Vec2/3/4, Mat2/3/4, Quat, transforms
 │       ├── commonTest/      # Shared test suite (runs on every platform)

@@ -564,6 +564,101 @@ tasks.matching {
     it.name.contains("SourcesJar") && (it.name.startsWith("js") || it.name.startsWith("wasmJs"))
 }.configureEach { dependsOn(generateGlue) }
 
+// ==================== JS/Wasm: npm package ====================
+// The self-contained Emscripten module ships as an npm package
+// (@enaium/glm-kmp) instead of a Maven "assets" jar: web apps depend on it
+// like any other npm package and `import { initGlmKmp, glmCall } from
+// "@enaium/glm-kmp"` to use GLM without Kotlin. The package is a single ESM
+// file: the glue (wasm embedded by -sSINGLE_FILE=1) is inlined as base64 by
+// assembleWasmNpm, so no asset fetching is required.
+//
+// npm only accepts three-component semver, so the fourth component of the
+// Gradle version (1.0.3.1) becomes a prerelease suffix (1.0.3-1). npm strips
+// build metadata, and four dotted numbers are "cleaned" to nonsense, so this
+// is the only faithful representation.
+val npmPackageVersion: String by lazy {
+    val parts = rootProject.version.toString().split('.')
+    val base = parts.take(3).joinToString(".")
+    val revision = parts.drop(3).joinToString(".")
+    if (revision.isEmpty()) base else "$base-$revision"
+}
+
+val wasmNpmDir = layout.buildDirectory.dir("npm").get().asFile
+val npmGlueTemplate = projectDir.resolve("wasm/glm_kmp_glue.js")
+
+tasks.register("assembleWasmNpm") {
+    group = "build"
+    description = "Stages the @enaium/glm-kmp npm package in build/npm."
+    dependsOn(buildGlmJs)
+    inputs.file(npmGlueTemplate)
+    inputs.file(emsGlueFile)
+    inputs.property("npmPackageVersion", npmPackageVersion)
+    outputs.dir(wasmNpmDir)
+    doLast {
+        wasmNpmDir.deleteRecursively()
+        wasmNpmDir.mkdirs()
+        // Same encoding as generateGlue: the glue's code points are the raw
+        // wasm bytes (0..255), so re-encode to Latin-1 before base64 and
+        // atob() yields the exact glue text.
+        val glueText = emsGlueFile.get().asFile.readText(Charsets.UTF_8)
+        val b64 = Base64.getEncoder().encodeToString(glueText.toByteArray(Charsets.ISO_8859_1))
+        npmGlueTemplate.readText()
+            .replace("__GLM_GLUE_B64__", b64)
+            .let { wasmNpmDir.resolve("glm_kmp.js").writeText(it) }
+        wasmNpmDir.resolve("package.json").writeText(
+            """
+            {
+              "name": "@enaium/glm-kmp",
+              "version": "$npmPackageVersion",
+              "description": "Emscripten-compiled GLM (OpenGL Mathematics) module for the web, built from the glm submodule",
+              "license": "MIT",
+              "type": "module",
+              "main": "./glm_kmp.js",
+              "exports": {
+                ".": "./glm_kmp.js",
+                "./package.json": "./package.json"
+              },
+              "files": ["glm_kmp.js"],
+              "homepage": "https://github.com/Enaium/glm-kmp",
+              "repository": {
+                "type": "git",
+                "url": "git+https://github.com/Enaium/glm-kmp.git"
+              }
+            }
+            """.trimIndent() + "\n",
+        )
+    }
+}
+
+tasks.register<Exec>("publishWasmNpm") {
+    group = "publishing"
+    description = "Publishes @enaium/glm-kmp to npm (token: npm.publish.key)."
+    dependsOn("assembleWasmNpm")
+    workingDir = wasmNpmDir
+    // The token lives in the user-level Gradle properties file
+    // (~/.gradle/gradle.properties, next to mavenCentralUsername and the
+    // signing.* entries); CI writes the same key there from a repository
+    // secret. `-Pnpm.publish.key=<token>` overrides it for one-off runs.
+    val npmKey = providers.gradleProperty("npm.publish.key")
+    doFirst {
+        val key = npmKey.orNull?.takeIf { it.isNotBlank() }
+            ?: throw GradleException(
+                "npm.publish.key is not set: add it to ~/.gradle/gradle.properties " +
+                    "or pass -Pnpm.publish.key=<token>",
+            )
+        // NODE_AUTH_TOKEN is expanded by npm through the environment, so the
+        // token never lands in the package.json/tarball; .npmrc is on npm's
+        // never-publish list anyway.
+        environment("NODE_AUTH_TOKEN", key)
+        wasmNpmDir.resolve(".npmrc").writeText(
+            "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}\n",
+        )
+    }
+    // The revision-bearing version (1.0.3-1) is a semver prerelease, so npm
+    // requires an explicit tag; `latest` keeps `npm i @enaium/glm-kmp` working.
+    commandLine("npm", "publish", "--access", "public", "--tag", "latest")
+}
+
 // ==================== Android: build JNI shared library per ABI ====================
 val androidJniAbis = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
 val androidApiLevel = 21
