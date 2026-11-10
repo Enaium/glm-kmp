@@ -2,12 +2,22 @@ name: Publish
 
 "on":
   workflow_dispatch:
+    inputs:
+      targets:
+        description: "Which artifacts to publish (use a subset to recover a partially failed release; Maven Central coordinates are immutable)"
+        type: choice
+        options:
+          - all
+          - macos
+          - linux
+          - windows
+        default: all
 
 # Publishes every artifact from the runner that can build it. Maven Central
 # coordinates are immutable, so each `:jni-jvm-{classifier}` and each native
 # target klib is published from exactly one runner:
 #
-#   macos-14      -> :glm-kmp (android/jvm/apple/js/wasmJs targets)
+#   macos-15      -> :glm-kmp (android/jvm/apple/js/wasmJs targets)
 #                    :jni-jvm-darwin-aarch64, :jni-jvm-darwin-x86_64
 #   ubuntu-latest -> :glm-kmp linuxX64 + linuxArm64 + mingwX64 targets
 #                    (static libs built here: linuxX64 natively, linuxArm64
@@ -28,7 +38,8 @@ name: Publish
 jobs:
   publish-macos:
     name: Publish macOS (multiplatform + darwin JNI)
-    runs-on: macos-14
+    if: ${{ inputs.targets == 'all' || inputs.targets == 'macos' }}
+    runs-on: macos-15
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -75,6 +86,7 @@ jobs:
 
   publish-linux:
     name: Publish Linux (linuxX64/linuxArm64/mingwX64 + linux JNI)
+    if: ${{ inputs.targets == 'all' || inputs.targets == 'linux' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -127,6 +139,7 @@ jobs:
 
   publish-windows:
     name: Publish Windows JNI
+    if: ${{ inputs.targets == 'all' || inputs.targets == 'windows' }}
     runs-on: windows-latest
     steps:
       - name: Check out repository
