@@ -32,8 +32,12 @@ operator overloads and member extensions.
 **Kotlin Multiplatform / Android / JS / Wasm:**
 
 ```kotlin
-implementation("cn.enaium.glm:glm-kmp:1.0.3.1")
+implementation("cn.enaium.glm:glm-kmp:1.0.2-fixed.1.0.3")
 ```
+
+Versions encode both the module and the pinned original library:
+`<module>-fixed.<lib>` — `1.0.2-fixed.1.0.3` is module 1.0.2 built
+against library 1.0.3.
 
 **JVM:** the right native binary is resolved automatically — the `glm-kmp`
 artifact pulls in the matching `:jni-jvm-*` sibling on the classpath:

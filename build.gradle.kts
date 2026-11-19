@@ -6,5 +6,7 @@ plugins {
 
 allprojects {
     group = "cn.enaium.glm"
-    version = "1.0.3.1"
+    // <module-version>-fixed.<original-library-version>; the module version
+    // follows its own semver line (last: 1.0.1, revision bump: 1.0.2).
+    version = "1.0.2-fixed.1.0.3"
 }

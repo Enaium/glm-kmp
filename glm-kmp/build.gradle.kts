@@ -572,16 +572,10 @@ tasks.matching {
 // file: the glue (wasm embedded by -sSINGLE_FILE=1) is inlined as base64 by
 // assembleWasmNpm, so no asset fetching is required.
 //
-// npm only accepts three-component semver, so the fourth component of the
-// Gradle version (1.0.3.1) becomes a prerelease suffix (1.0.3-1). npm strips
-// build metadata, and four dotted numbers are "cleaned" to nonsense, so this
-// is the only faithful representation.
-val npmPackageVersion: String by lazy {
-    val parts = rootProject.version.toString().split('.')
-    val base = parts.take(3).joinToString(".")
-    val revision = parts.drop(3).joinToString(".")
-    if (revision.isEmpty()) base else "$base-$revision"
-}
+// The Gradle version (<module>-fixed.<lib>) is already valid semver: the
+// module version is three-component and "-fixed.<lib>" is a prerelease
+// suffix, so npm uses it verbatim.
+val npmPackageVersion: String by lazy { rootProject.version.toString() }
 
 val wasmNpmDir = layout.buildDirectory.dir("npm").get().asFile
 val npmGlueTemplate = projectDir.resolve("wasm/glm_kmp_glue.js")
@@ -654,8 +648,8 @@ tasks.register<Exec>("publishWasmNpm") {
             "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}\n",
         )
     }
-    // The revision-bearing version (1.0.3-1) is a semver prerelease, so npm
-    // requires an explicit tag; `latest` keeps `npm i @enaium/glm-kmp` working.
+    // "1.0.2-fixed.1.0.3" is a semver prerelease, so npm requires an
+    // explicit tag; `latest` keeps `npm i @enaium/glm-kmp` working.
     commandLine("npm", "publish", "--access", "public", "--tag", "latest")
 }
 

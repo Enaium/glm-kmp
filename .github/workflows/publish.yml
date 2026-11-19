@@ -27,8 +27,8 @@ name: Publish
 #                    the @enaium/glm-kmp npm package (needs emcc)
 #   windows-latest -> :jni-jvm-windows-x86_64 (via MinGW)
 #
-# Trigger: run manually via the Actions tab. Version is fixed at 1.0.3.1
-# (root build.gradle.kts).
+# Trigger: run manually via the Actions tab. Version is fixed at
+# 1.0.2-fixed.1.0.3 (root build.gradle.kts).
 #
 # Required repository secrets (Settings -> Secrets and variables -> Actions):
 #   MAVEN_CENTRAL_USERNAME   Sonatype Central Portal user-token username
