@@ -8,6 +8,7 @@ name: Publish
         type: choice
         options:
           - all
+          - maven
           - macos
           - linux
           - windows
@@ -43,7 +44,7 @@ name: Publish
 jobs:
   publish-macos:
     name: Publish macOS (multiplatform + darwin JNI)
-    if: ${{ inputs.targets == 'all' || inputs.targets == 'macos' }}
+    if: ${{ inputs.targets == 'all' || inputs.targets == 'maven' || inputs.targets == 'macos' }}
     runs-on: macos-15
     steps:
       - name: Check out repository
@@ -91,7 +92,7 @@ jobs:
 
   publish-linux:
     name: Publish Linux (linuxX64/linuxArm64/mingwX64 + linux JNI)
-    if: ${{ inputs.targets == 'all' || inputs.targets == 'linux' }}
+    if: ${{ inputs.targets == 'all' || inputs.targets == 'maven' || inputs.targets == 'linux' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -144,7 +145,7 @@ jobs:
 
   publish-windows:
     name: Publish Windows JNI
-    if: ${{ inputs.targets == 'all' || inputs.targets == 'windows' }}
+    if: ${{ inputs.targets == 'all' || inputs.targets == 'maven' || inputs.targets == 'windows' }}
     runs-on: windows-latest
     steps:
       - name: Check out repository
